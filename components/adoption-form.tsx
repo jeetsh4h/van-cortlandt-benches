@@ -9,10 +9,6 @@ import { PlaquePreview } from "@/components/plaque-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { releaseBenchHold, submitAdoption } from "@/lib/benches";
 import type {
@@ -52,17 +48,16 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-function calendarEndDate(count: number, unit: "month" | "year") {
+function calendarEndDate(years: number) {
   const start = new Date();
   const year = start.getFullYear();
   const month = start.getMonth();
   const day = start.getDate();
-  const targetMonth = unit === "month" ? month + count : month;
-  const targetYear = unit === "year" ? year + count : year;
-  const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const targetYear = year + years;
+  const lastDay = new Date(targetYear, month + 1, 0).getDate();
 
   return new Date(
-    Date.UTC(targetYear, targetMonth, Math.min(day, lastDay)),
+    Date.UTC(targetYear, month, Math.min(day, lastDay)),
   );
 }
 
@@ -101,7 +96,6 @@ export function AdoptionForm({
   const [stage, setStage] = useState<FlowStage>("tribute");
   const [patronName, setPatronName] = useState("");
   const [durationCount, setDurationCount] = useState(DEFAULT_ADOPTION_YEARS);
-  const [durationUnit, setDurationUnit] = useState<"month" | "year">("year");
   const [plaqueMessage, setPlaqueMessage] = useState("");
   const [contributionAmount, setContributionAmount] = useState(
     BENCH_ADOPTION_MINIMUM,
@@ -111,11 +105,19 @@ export function AdoptionForm({
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<AdoptionResult | null>(null);
   const ownsHoldRef = useRef(true);
+  const releaseTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (releaseTimerRef.current !== null) {
+      window.clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = null;
+    }
+
     return () => {
       if (ownsHoldRef.current) {
-        void releaseBenchHold(bench.id, sessionToken).catch(() => undefined);
+        releaseTimerRef.current = window.setTimeout(() => {
+          void releaseBenchHold(bench.id, sessionToken).catch(() => undefined);
+        }, 0);
       }
     };
   }, [bench.id, sessionToken]);
@@ -176,7 +178,6 @@ export function AdoptionForm({
         adopterName: patronName,
         plaqueMessage,
         durationCount,
-        durationUnit,
         contributionAmount,
         paymentMethod,
         isAnonymous,
@@ -198,7 +199,7 @@ export function AdoptionForm({
     }
   }
 
-  const endDate = calendarEndDate(durationCount, durationUnit);
+  const endDate = calendarEndDate(durationCount);
   const holdTime = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -228,7 +229,7 @@ export function AdoptionForm({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4 sm:gap-5">
       <FlowProgress stage={stage} />
 
       <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
@@ -240,7 +241,7 @@ export function AdoptionForm({
       </div>
 
       {stage === "tribute" ? (
-        <form className="flex animate-in flex-col gap-5 fade-in" onSubmit={showPayment}>
+        <form className="flex animate-in flex-col gap-4 fade-in sm:gap-5" onSubmit={showPayment}>
           <PlaquePreview message={plaqueMessage} />
 
           <div className="flex flex-col gap-2">
@@ -279,31 +280,23 @@ export function AdoptionForm({
 
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-sm font-medium">Term</legend>
-            <div className="grid grid-cols-[1fr_1.4fr] gap-2">
+            <div className="relative">
               <Input
                 aria-label="Duration count"
                 type="number"
                 min={1}
-                max={durationUnit === "year" ? 10 : 120}
+                max={10}
                 step={1}
                 value={durationCount}
                 onChange={(event) =>
                   setDurationCount(Math.max(1, Number(event.target.value)))
                 }
+                className="pr-16"
                 required
               />
-              <NativeSelect
-                aria-label="Duration unit"
-                value={durationUnit}
-                onChange={(event) => {
-                  const unit = event.target.value as "month" | "year";
-                  setDurationUnit(unit);
-                  setDurationCount(unit === "year" ? DEFAULT_ADOPTION_YEARS : 120);
-                }}
-              >
-                <NativeSelectOption value="month">Months</NativeSelectOption>
-                <NativeSelectOption value="year">Years</NativeSelectOption>
-              </NativeSelect>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                years
+              </span>
             </div>
           </fieldset>
 
