@@ -21,6 +21,7 @@ export function BenchExplorer({
 }: BenchExplorerProps) {
   const [benches, setBenches] = useState(initialBenches);
   const [selectedBenchId, setSelectedBenchId] = useState<string | null>(null);
+  const [resetRequestId, setResetRequestId] = useState(0);
 
   const refreshBenches = useCallback(async () => {
     const nextBenches = await listBenches(getBrowserSupabaseClient());
@@ -59,6 +60,31 @@ export function BenchExplorer({
     [benches, selectedBenchId],
   );
 
+  const availableBenches = useMemo(
+    () => benches.filter((bench) => getBenchStatus(bench) === "available"),
+    [benches],
+  );
+
+  const selectedAvailableIndex = availableBenches.findIndex(
+    (bench) => bench.id === selectedBenchId,
+  );
+
+  const cycleAvailable = useCallback(
+    (direction: 1 | -1) => {
+      if (!availableBenches.length) {
+        return;
+      }
+
+      const nextIndex =
+        selectedAvailableIndex === -1 ?
+          direction === 1 ? 0 : availableBenches.length - 1
+        : (selectedAvailableIndex + direction + availableBenches.length) %
+          availableBenches.length;
+      setSelectedBenchId(availableBenches[nextIndex].id);
+    },
+    [availableBenches, selectedAvailableIndex],
+  );
+
   const counts = useMemo(
     () => ({
       available: benches.filter((bench) => getBenchStatus(bench) === "available")
@@ -79,11 +105,17 @@ export function BenchExplorer({
         mapboxToken={mapboxToken}
         selectedBenchId={selectedBenchId}
         onSelectBench={setSelectedBenchId}
+        resetRequestId={resetRequestId}
       />
       <AppHeader
         availableCount={counts.available}
         adoptedCount={counts.adopted}
         inProgressCount={counts.inProgress}
+        onShowAvailable={() => cycleAvailable(1)}
+        onResetMap={() => {
+          setSelectedBenchId(null);
+          setResetRequestId((current) => current + 1);
+        }}
       />
       <MapLegend />
       {selectedBench ? (
@@ -92,6 +124,12 @@ export function BenchExplorer({
           bench={selectedBench}
           onClose={() => setSelectedBenchId(null)}
           onChanged={refreshBenches}
+          availablePosition={
+            selectedAvailableIndex === -1 ? null : selectedAvailableIndex + 1
+          }
+          availableTotal={availableBenches.length}
+          onPreviousAvailable={() => cycleAvailable(-1)}
+          onNextAvailable={() => cycleAvailable(1)}
         />
       ) : null}
     </main>

@@ -11,12 +11,17 @@ const CLUSTER_COUNT_LAYER_ID = "bench-cluster-count";
 const HALO_LAYER_ID = "bench-halos";
 const POINT_LAYER_ID = "bench-points";
 const SYMBOL_LAYER_ID = "bench-symbols";
+const PARK_BOUNDS: mapboxgl.LngLatBoundsLike = [
+  [-73.912, 40.884],
+  [-73.881, 40.917],
+];
 
 type ParkMapProps = {
   benches: Bench[];
   mapboxToken: string;
   selectedBenchId: string | null;
   onSelectBench: (benchId: string) => void;
+  resetRequestId: number;
 };
 
 function toGeoJson(benches: Bench[], selectedBenchId: string | null) {
@@ -46,6 +51,7 @@ export function ParkMap({
   mapboxToken,
   selectedBenchId,
   onSelectBench,
+  resetRequestId,
 }: ParkMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
@@ -68,6 +74,7 @@ export function ParkMap({
     const adoptedColor = getMapColor("--map-adopted");
     const progressColor = getMapColor("--map-progress");
     const surfaceColor = getMapColor("--map-surface");
+    const clusterColor = getMapColor("--map-cluster");
     let animationFrame: number | undefined;
 
     const map = new mapboxgl.Map({
@@ -108,6 +115,20 @@ export function ParkMap({
         cluster: true,
         clusterMaxZoom: 15,
         clusterRadius: 44,
+        clusterProperties: {
+          available_count: [
+            "+",
+            ["case", ["==", ["get", "status"], "available"], 1, 0],
+          ],
+          adopted_count: [
+            "+",
+            ["case", ["==", ["get", "status"], "adopted"], 1, 0],
+          ],
+          progress_count: [
+            "+",
+            ["case", ["==", ["get", "status"], "in-progress"], 1, 0],
+          ],
+        },
       });
 
       map.addLayer({
@@ -117,10 +138,10 @@ export function ParkMap({
         slot: "top",
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": availableColor,
-          "circle-radius": ["step", ["get", "point_count"], 18, 8, 23],
-          "circle-stroke-color": surfaceColor,
-          "circle-stroke-width": 3,
+          "circle-color": surfaceColor,
+          "circle-radius": 29,
+          "circle-stroke-color": clusterColor,
+          "circle-stroke-width": 2,
           "circle-emissive-strength": 1,
         },
       });
@@ -132,12 +153,22 @@ export function ParkMap({
         slot: "top",
         filter: ["has", "point_count"],
         layout: {
-          "text-field": ["get", "point_count_abbreviated"],
-          "text-size": 12,
+          "text-field": [
+            "concat",
+            "+ ",
+            ["to-string", ["get", "available_count"]],
+            "  ♥ ",
+            ["to-string", ["get", "adopted_count"]],
+            "\n• ",
+            ["to-string", ["get", "progress_count"]],
+          ],
+          "text-size": 11,
+          "text-line-height": 1.25,
           "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
+          "text-allow-overlap": true,
         },
         paint: {
-          "text-color": surfaceColor,
+          "text-color": clusterColor,
         },
       });
 
@@ -326,9 +357,29 @@ export function ParkMap({
       center: [bench.longitude, bench.latitude],
       zoom: Math.max(mapRef.current.getZoom(), 15.5),
       duration: 700,
-      padding: window.innerWidth >= 640 ? { right: 400 } : { bottom: 280 },
+      padding:
+        window.innerWidth >= 640 ?
+          { top: 24, right: 424, bottom: 24, left: 24 }
+        : {
+            top: 88,
+            right: 16,
+            bottom: Math.round(window.innerHeight * 0.56),
+            left: 16,
+          },
     });
   }, [benches, selectedBenchId]);
+
+  useEffect(() => {
+    if (!resetRequestId || !mapRef.current) {
+      return;
+    }
+
+    mapRef.current.fitBounds(PARK_BOUNDS, {
+      padding: window.innerWidth >= 640 ? 72 : 36,
+      maxZoom: 14,
+      duration: 700,
+    });
+  }, [resetRequestId]);
 
   return (
     <div className="absolute inset-0">

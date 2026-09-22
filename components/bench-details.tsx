@@ -2,6 +2,8 @@
 
 import {
   Armchair,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Heart,
   LoaderCircle,
@@ -19,11 +21,16 @@ import { Separator } from "@/components/ui/separator";
 import { reserveBench } from "@/lib/benches";
 import { getBenchImage, getBenchStatus, type Bench } from "@/lib/bench-types";
 import { BENCH_ADOPTION_MINIMUM, currencyFormatter } from "@/lib/contribution";
+import { cn } from "@/lib/utils";
 
 type BenchDetailsProps = {
   bench: Bench;
   onClose: () => void;
   onChanged: () => Promise<void>;
+  availablePosition: number | null;
+  availableTotal: number;
+  onPreviousAvailable: () => void;
+  onNextAvailable: () => void;
 };
 
 type AdoptionStage = "details" | "reserving" | "form";
@@ -51,7 +58,15 @@ function getSessionToken() {
   return token;
 }
 
-export function BenchDetails({ bench, onClose, onChanged }: BenchDetailsProps) {
+export function BenchDetails({
+  bench,
+  onClose,
+  onChanged,
+  availablePosition,
+  availableTotal,
+  onPreviousAvailable,
+  onNextAvailable,
+}: BenchDetailsProps) {
   const [stage, setStage] = useState<AdoptionStage>("details");
   const [holdExpiresAt, setHoldExpiresAt] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -88,10 +103,13 @@ export function BenchDetails({ bench, onClose, onChanged }: BenchDetailsProps) {
 
   return (
     <aside
-      className="fixed inset-x-0 bottom-0 z-30 max-h-[72dvh] overflow-y-auto rounded-t-3xl border border-border/70 bg-background/95 shadow-2xl shadow-foreground/10 backdrop-blur-xl sm:inset-y-4 sm:right-4 sm:left-auto sm:max-h-none sm:w-96 sm:rounded-3xl"
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-30 flex flex-col overflow-hidden rounded-t-3xl border border-border/70 bg-background/95 shadow-2xl shadow-foreground/10 backdrop-blur-xl sm:inset-y-4 sm:right-4 sm:left-auto sm:h-auto sm:w-[26rem] sm:rounded-3xl",
+        stage === "form" ? "h-[calc(100dvh-0.75rem)]" : "h-[56dvh]",
+      )}
       aria-label={`Details for ${bench.name}`}
     >
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/70 bg-background/95 px-5 py-4 backdrop-blur-xl">
+      <div className="z-10 flex shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur-xl sm:px-5">
         <Badge
           variant={
             status === "adopted" ? "adopted"
@@ -106,6 +124,29 @@ export function BenchDetails({ bench, onClose, onChanged }: BenchDetailsProps) {
             "In progress"
           : "Available"}
         </Badge>
+        {stage === "details" && availablePosition ?
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onPreviousAvailable}
+              aria-label="Previous available bench"
+            >
+              <ChevronLeft aria-hidden="true" />
+            </Button>
+            <span className="min-w-12 text-center text-xs tabular-nums text-muted-foreground">
+              {availablePosition}/{availableTotal}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onNextAvailable}
+              aria-label="Next available bench"
+            >
+              <ChevronRight aria-hidden="true" />
+            </Button>
+          </div>
+        : null}
         <Button
           variant="ghost"
           size="icon"
@@ -116,40 +157,9 @@ export function BenchDetails({ bench, onClose, onChanged }: BenchDetailsProps) {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-6 p-5 sm:p-6">
-        <figure className="relative aspect-3/2 overflow-hidden rounded-2xl bg-muted">
-          <Image
-            src={getBenchImage(bench.area)}
-            alt={`Illustrative view of a park bench in ${bench.area}`}
-            fill
-            sizes="(max-width: 639px) 100vw, 384px"
-            className="object-cover"
-            priority
-          />
-          <figcaption className="absolute right-2 bottom-2 rounded-full bg-background/85 px-2 py-1 text-[0.625rem] font-medium text-muted-foreground backdrop-blur-md">
-            Illustrative view
-          </figcaption>
-        </figure>
-
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
-            {bench.id}
-          </p>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            {bench.name}
-          </h1>
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin
-              aria-hidden="true"
-              className="size-4"
-            />
-            {bench.area}
-          </p>
-        </div>
-
-        <Separator />
-
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {stage === "form" && sessionToken && holdExpiresAt ?
+          <div className="p-4 sm:p-6">
           <AdoptionForm
             bench={bench}
             sessionToken={sessionToken}
@@ -163,8 +173,39 @@ export function BenchDetails({ bench, onClose, onChanged }: BenchDetailsProps) {
             onComplete={completeAdoption}
             onDone={onClose}
           />
-        : status === "adopted" && bench.plaque_message ?
-          <div className="flex flex-col gap-6">
+          </div>
+        : <div className="flex flex-col gap-4 p-4 pb-5 sm:gap-6 sm:p-6">
+            <figure className="relative h-28 shrink-0 overflow-hidden rounded-2xl bg-muted sm:aspect-3/2 sm:h-auto">
+              <Image
+                src={getBenchImage(bench.area)}
+                alt={`Illustrative view of a park bench in ${bench.area}`}
+                fill
+                sizes="(max-width: 639px) 100vw, 416px"
+                className="object-cover"
+                priority
+              />
+              <figcaption className="absolute right-2 bottom-2 rounded-full bg-background/85 px-2 py-1 text-[0.625rem] font-medium text-muted-foreground backdrop-blur-md">
+                Illustrative view
+              </figcaption>
+            </figure>
+
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                {bench.id}
+              </p>
+              <h1 className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
+                {bench.name}
+              </h1>
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin aria-hidden="true" className="size-4" />
+                {bench.area}
+              </p>
+            </div>
+
+            <Separator />
+
+            {status === "adopted" && bench.plaque_message ?
+              <div className="flex flex-col gap-5">
             <div className="flex items-center gap-3 rounded-2xl bg-celebration/10 p-4 text-celebration-foreground">
               <span className="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-celebration/20">
                 <Heart
@@ -192,9 +233,9 @@ export function BenchDetails({ bench, onClose, onChanged }: BenchDetailsProps) {
                 </p>
               </div>
             </div>
-          </div>
-        : status === "in-progress" ?
-          <div className="flex flex-col items-center gap-4 rounded-2xl bg-progress/10 py-7 text-center text-progress-foreground">
+              </div>
+            : status === "in-progress" ?
+              <div className="flex flex-col items-center gap-4 rounded-2xl bg-progress/10 py-7 text-center text-progress-foreground">
             <span className="relative flex size-12 items-center justify-center rounded-full bg-progress/15">
               <span className="absolute inset-0 rounded-full border border-progress/30 motion-safe:animate-ping" />
               <Clock3 aria-hidden="true" />
@@ -207,50 +248,50 @@ export function BenchDetails({ bench, onClose, onChanged }: BenchDetailsProps) {
                 A patron is choosing their words.
               </p>
             </div>
-          </div>
-        : <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Armchair aria-hidden="true" />
-              </span>
-              <div>
-                <h2 className="font-heading font-semibold">
-                  Available to adopt
-                </h2>
-                <p className="mt-1 text-sm font-medium text-primary">
-                  {currencyFormatter.format(BENCH_ADOPTION_MINIMUM)} minimum ·
-                  10 years
-                </p>
               </div>
-            </div>
+            : <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Armchair aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="font-heading font-semibold">
+                    Available to adopt
+                  </h2>
+                  <p className="mt-1 text-sm font-medium text-primary">
+                    {currencyFormatter.format(BENCH_ADOPTION_MINIMUM)} minimum ·
+                    10 years
+                  </p>
+                </div>
+              </div>
+            }
+
             {error ?
-              <p
-                role="alert"
-                className="text-sm text-destructive"
-              >
+              <p role="alert" className="text-sm text-destructive">
                 {error}
               </p>
             : null}
-            <Button
-              size="wide"
-              onClick={startAdoption}
-              disabled={stage === "reserving"}
-            >
-              {stage === "reserving" ?
-                <LoaderCircle
-                  className="animate-spin"
-                  aria-hidden="true"
-                />
-              : null}
-              Adopt this bench
-            </Button>
+
+            <p className="text-xs text-muted-foreground">
+              Location: {bench.latitude.toFixed(5)}, {bench.longitude.toFixed(5)}
+            </p>
           </div>
         }
-
-        <p className="text-xs text-muted-foreground">
-          Location: {bench.latitude.toFixed(5)}, {bench.longitude.toFixed(5)}
-        </p>
       </div>
+
+      {stage !== "form" && status === "available" ?
+        <div className="shrink-0 border-t border-border/70 bg-background/95 p-3 backdrop-blur-xl sm:p-4">
+          <Button
+            size="wide"
+            onClick={startAdoption}
+            disabled={stage === "reserving"}
+          >
+            {stage === "reserving" ?
+              <LoaderCircle className="animate-spin" aria-hidden="true" />
+            : null}
+            Adopt this bench
+          </Button>
+        </div>
+      : null}
     </aside>
   );
 }
