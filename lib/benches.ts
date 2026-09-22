@@ -4,6 +4,7 @@ import type {
   AdoptionResult,
   Bench,
   HoldResult,
+  PaymentMethod,
 } from "@/lib/bench-types";
 import {
   createPublicSupabaseClient,
@@ -58,6 +59,9 @@ export async function submitAdoption(input: {
   plaqueMessage: string;
   durationCount: number;
   durationUnit: "month" | "year";
+  contributionAmount: number;
+  paymentMethod: PaymentMethod;
+  isAnonymous: boolean;
 }): Promise<AdoptionResult> {
   const { data, error } = await getBrowserSupabaseClient().rpc("adopt_bench", {
     p_bench_id: input.benchId,
@@ -66,6 +70,9 @@ export async function submitAdoption(input: {
     p_plaque_message: input.plaqueMessage,
     p_duration_count: input.durationCount,
     p_duration_unit: input.durationUnit,
+    p_contribution_amount: input.contributionAmount,
+    p_payment_method: input.paymentMethod,
+    p_is_anonymous: input.isAnonymous,
   });
 
   if (error) {

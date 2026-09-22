@@ -26,7 +26,19 @@ export type AdoptionResult = {
   message: string;
   adoption_start: string | null;
   adoption_end: string | null;
+  contribution_amount: number | null;
+  payment_method: PaymentMethod | null;
+  is_anonymous: boolean | null;
+  receipt_number: string | null;
 };
+
+export type PaymentMethod =
+  | "card"
+  | "bank"
+  | "zelle"
+  | "check"
+  | "stock"
+  | "daf";
 
 export function getBenchStatus(bench: Bench): BenchStatus {
   if (bench.adoption_end) {
@@ -41,4 +53,16 @@ export function getBenchStatus(bench: Bench): BenchStatus {
   }
 
   return "available";
+}
+
+export function getBenchImage(area: string) {
+  if (area === "Lake area") {
+    return "/benches/lake-area.webp";
+  }
+
+  if (area === "Southwest park") {
+    return "/benches/southwest-park.webp";
+  }
+
+  return "/benches/wooded-trail.webp";
 }

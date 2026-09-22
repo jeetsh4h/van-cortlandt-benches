@@ -8,7 +8,9 @@ import { getBenchStatus, type Bench } from "@/lib/bench-types";
 const SOURCE_ID = "park-benches";
 const CLUSTER_LAYER_ID = "bench-clusters";
 const CLUSTER_COUNT_LAYER_ID = "bench-cluster-count";
+const HALO_LAYER_ID = "bench-halos";
 const POINT_LAYER_ID = "bench-points";
+const SYMBOL_LAYER_ID = "bench-symbols";
 
 type ParkMapProps = {
   benches: Bench[];
@@ -66,6 +68,7 @@ export function ParkMap({
     const adoptedColor = getMapColor("--map-adopted");
     const progressColor = getMapColor("--map-progress");
     const surfaceColor = getMapColor("--map-surface");
+    let animationFrame: number | undefined;
 
     const map = new mapboxgl.Map({
       accessToken: mapboxToken,
@@ -139,6 +142,33 @@ export function ParkMap({
       });
 
       map.addLayer({
+        id: HALO_LAYER_ID,
+        type: "circle",
+        source: SOURCE_ID,
+        slot: "top",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": [
+            "match",
+            ["get", "status"],
+            "adopted",
+            adoptedColor,
+            "in-progress",
+            progressColor,
+            availableColor,
+          ],
+          "circle-radius": 15,
+          "circle-opacity": [
+            "match",
+            ["get", "status"],
+            "available",
+            0,
+            0.18,
+          ],
+        },
+      });
+
+      map.addLayer({
         id: POINT_LAYER_ID,
         type: "circle",
         source: SOURCE_ID,
@@ -160,6 +190,66 @@ export function ParkMap({
           "circle-emissive-strength": 1,
         },
       });
+
+      map.addLayer({
+        id: SYMBOL_LAYER_ID,
+        type: "symbol",
+        source: SOURCE_ID,
+        slot: "top",
+        filter: ["!", ["has", "point_count"]],
+        layout: {
+          "text-field": [
+            "match",
+            ["get", "status"],
+            "adopted",
+            "♥",
+            "in-progress",
+            "•",
+            "+",
+          ],
+          "text-size": ["match", ["get", "status"], "in-progress", 18, 15],
+          "text-font": ["Arial Unicode MS Bold"],
+          "text-allow-overlap": true,
+        },
+        paint: {
+          "text-color": surfaceColor,
+        },
+      });
+
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+
+      if (!reduceMotion) {
+        const animateHalos = (time: number) => {
+          const pulse = (Math.sin(time / 500) + 1) / 2;
+          map.setPaintProperty(HALO_LAYER_ID, "circle-radius", [
+            "match",
+            ["get", "status"],
+            "adopted",
+            13 + pulse * 3,
+            "in-progress",
+            14 + pulse * 5,
+            0,
+          ]);
+          map.setPaintProperty(
+            HALO_LAYER_ID,
+            "circle-opacity",
+            [
+              "match",
+              ["get", "status"],
+              "adopted",
+              0.14 + pulse * 0.1,
+              "in-progress",
+              0.1 + pulse * 0.14,
+              0,
+            ],
+          );
+          animationFrame = window.requestAnimationFrame(animateHalos);
+        };
+
+        animationFrame = window.requestAnimationFrame(animateHalos);
+      }
 
       map.on("click", CLUSTER_LAYER_ID, (event) => {
         const feature = event.features?.[0]?.toJSON();
@@ -183,16 +273,18 @@ export function ParkMap({
         );
       });
 
-      map.on("click", POINT_LAYER_ID, (event) => {
-        const benchId = event.features?.[0]?.toJSON().properties?.id as
-          | string
-          | undefined;
-        if (benchId) {
-          onSelectBenchRef.current(benchId);
-        }
-      });
+      for (const layerId of [POINT_LAYER_ID, SYMBOL_LAYER_ID]) {
+        map.on("click", layerId, (event) => {
+          const benchId = event.features?.[0]?.toJSON().properties?.id as
+            | string
+            | undefined;
+          if (benchId) {
+            onSelectBenchRef.current(benchId);
+          }
+        });
+      }
 
-      for (const layerId of [CLUSTER_LAYER_ID, POINT_LAYER_ID]) {
+      for (const layerId of [CLUSTER_LAYER_ID, POINT_LAYER_ID, SYMBOL_LAYER_ID]) {
         map.on("mouseenter", layerId, () => {
           map.getCanvas().style.cursor = "pointer";
         });
@@ -205,6 +297,9 @@ export function ParkMap({
     mapRef.current = map;
 
     return () => {
+      if (animationFrame !== undefined) {
+        window.cancelAnimationFrame(animationFrame);
+      }
       map.remove();
       mapRef.current = null;
     };

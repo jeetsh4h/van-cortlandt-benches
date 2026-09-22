@@ -36,7 +36,7 @@ export function BenchExplorer({
       .channel("public-bench-map")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "bench_adoptions" },
+        { event: "*", schema: "public", table: "bench_updates" },
         syncBenches,
       )
       .on(
@@ -65,6 +65,9 @@ export function BenchExplorer({
         .length,
       adopted: benches.filter((bench) => getBenchStatus(bench) === "adopted")
         .length,
+      inProgress: benches.filter(
+        (bench) => getBenchStatus(bench) === "in-progress",
+      ).length,
     }),
     [benches],
   );
@@ -80,6 +83,7 @@ export function BenchExplorer({
       <AppHeader
         availableCount={counts.available}
         adoptedCount={counts.adopted}
+        inProgressCount={counts.inProgress}
       />
       <MapLegend />
       {selectedBench ? (

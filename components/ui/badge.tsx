@@ -9,8 +9,9 @@ const badgeVariants = cva(
     variants: {
       variant: {
         available: "border-primary/20 bg-primary/10 text-primary",
-        adopted: "border-foreground/10 bg-foreground text-background",
-        progress: "border-border bg-muted text-muted-foreground",
+        adopted:
+          "border-celebration/25 bg-celebration/15 text-celebration-foreground",
+        progress: "border-progress/20 bg-progress/10 text-progress-foreground",
         outline: "border-border bg-background/80 text-foreground backdrop-blur-md",
       },
     },
