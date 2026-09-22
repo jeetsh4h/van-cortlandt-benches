@@ -35,7 +35,7 @@ export function PlaquePreview({ message }: PlaquePreviewProps) {
         <PlaqueScrew position="right-2 bottom-2" />
         <div
           className={cn(
-            "flex h-full flex-col items-center justify-center text-center leading-tight font-semibold tracking-wide text-plaque-foreground uppercase",
+            "flex h-full flex-col items-center justify-center text-center font-plaque leading-tight font-medium tracking-normal text-plaque-foreground",
             fontSize,
             !message && "opacity-40",
           )}

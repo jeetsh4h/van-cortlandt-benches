@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Montserrat } from "next/font/google";
+import { Geist, Geist_Mono, Lora, Montserrat } from "next/font/google";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
@@ -20,9 +20,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const loraPlaque = Lora({
+  subsets: ["latin"],
+  variable: "--font-plaque",
+});
+
 export const metadata: Metadata = {
   title: "Van Cortlandt Park Benches",
   description: "Explore and adopt benches in Van Cortlandt Park.",
+  icons: {
+    icon: "/vcpa-mark.png",
+    apple: "/vcpa-mark.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -39,6 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         geistSans.variable,
         geistMono.variable,
         montserratHeading.variable,
+        loraPlaque.variable,
       )}
     >
       <body className="min-h-full">{children}</body>
