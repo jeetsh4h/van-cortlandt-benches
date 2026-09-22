@@ -27,6 +27,7 @@ For deployment, add the same variables to the host and allow its URL in the Mapb
 - The 11 bench coordinates are [OpenStreetMap](https://www.openstreetmap.org/copyright) `amenity=bench` nodes retrieved on September 22, 2026 and checked against [NYC Parks property X092 geometry](https://data.cityofnewyork.us/Recreation/Parks-Properties/enfh-gkve). This is an incomplete public inventory and must be field-verified before real use.
 - Bench IDs, area labels, adopter names, plaque messages, and the two initial adoptions are POC fixtures. They are not NYC Parks records.
 - The three area images are AI-generated illustrations, not photographs of the mapped benches. Replace them with field-verified photos before launch.
+- The favicon and header mark use the [Van Cortlandt Park Alliance site icon](https://vancortlandt.org/wp-content/uploads/2019/10/cropped-site-icon-270x270.png) for this POC; confirm brand permission before launch.
 - Source IDs remain in `benches.source_reference` for auditing.
 
 ## Contribution model
@@ -38,9 +39,10 @@ For deployment, add the same variables to the host and allow its URL in the Mapb
 ## Behavior
 
 - Adoption state is derived from `adoption_start` and `adoption_end`; there is no adopted flag.
-- Dates use calendar intervals. The day is preserved when possible and otherwise clamped to the target month’s final day.
+- Terms use whole years. The adoption end keeps the start month and day, clamping leap-day adoptions when needed.
 - Starting an adoption creates an atomic 10-minute hold. Other visitors see the hold within the 15-second availability refresh and cannot adopt through the database RPC.
 - A separate, non-sensitive update table triggers Supabase Realtime refreshes without exposing contribution receipts.
+- Hold cleanup is deferred across React development effect checks. Releasing synchronously from an effect cleanup invalidates a fresh hold under Strict Mode.
 
 ## Before production
 
