@@ -1,0 +1,2 @@
+-- POC bench and adoption fixtures are inserted by the schema migration so linked
+-- and local databases receive the same baseline data.

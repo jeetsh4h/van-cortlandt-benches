@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Van Cortlandt Park benches
 
-## Getting Started
+Map-first POC for viewing and adopting benches. Built with Next.js 16, Mapbox GL JS, Supabase, Tailwind CSS, and shadcn/ui conventions.
 
-First, run the development server:
+## Run
+
+Set these in `.env`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+NEXT_PUBLIC_MAPBOX_TOKEN=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then run:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+pnpm supabase db push
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+For deployment, add the same variables to the host and allow its URL in the Mapbox token restrictions.
 
-## Learn More
+## Data
 
-To learn more about Next.js, take a look at the following resources:
+- The 11 bench coordinates are [OpenStreetMap](https://www.openstreetmap.org/copyright) `amenity=bench` nodes retrieved on September 22, 2026 and checked against [NYC Parks property X092 geometry](https://data.cityofnewyork.us/Recreation/Parks-Properties/enfh-gkve). This is an incomplete public inventory and must be field-verified before real use.
+- Bench IDs, area labels, adopter names, plaque messages, and the two initial adoptions are POC fixtures. They are not NYC Parks records.
+- Source IDs remain in `benches.source_reference` for auditing.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Behavior
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Adoption state is derived from `adoption_start` and `adoption_end`; there is no adopted flag.
+- Dates use calendar intervals. The day is preserved when possible and otherwise clamped to the target month’s final day.
+- Starting an adoption creates an atomic 10-minute hold. Other visitors see the hold within the 15-second availability refresh and cannot adopt through the database RPC.
+- Adoption changes also arrive through Supabase Realtime.
 
-## Deploy on Vercel
+## Before production
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This POC intentionally has no authentication or payment. Add moderation, abuse protection, an authoritative bench inventory, and a reviewed privacy policy before collecting public submissions. Keep writes behind the existing RPC functions; direct anonymous table writes are blocked by RLS.
