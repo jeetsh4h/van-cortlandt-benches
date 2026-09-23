@@ -32,7 +32,7 @@ For deployment, add the same variables to the host and allow its URL in the Mapb
 
 ## Contribution model
 
-- The floor is $3,500 for an existing bench and the standard term is 10 years, following the [Van Cortlandt Park Alliance bench FAQ](https://vancortlandt.org/bench/). Its plaque limit is seven lines; this POC adds a 160-character limit and live line wrapping so the proof remains legible.
+- The floor is $3,500 for 10 years, following the [Van Cortlandt Park Alliance bench FAQ](https://vancortlandt.org/bench/). Terms run from 10–99 years; each additional year adds $350 to the minimum. Optional donations are recorded separately. The FAQ’s seven-line plaque limit is paired with a 160-character limit and live wrapping in this POC.
 - Payment is mocked. Card, bank transfer, Zelle, check or money order, stock, and donor-advised fund are presentation options; no financial details or funds are collected. The broader transfer options are informed by the [Central Park Conservancy adoption flow](https://www.centralparknyc.org/giving/adopt-a-bench).
 - Patrons may contribute more than the floor and hide their name publicly. Private contribution records are not readable through the anonymous API; the public bench query returns `Anonymous patron` instead.
 
@@ -43,6 +43,7 @@ For deployment, add the same variables to the host and allow its URL in the Mapb
 - Starting an adoption creates an atomic 10-minute hold. Other visitors see the hold within the 15-second availability refresh and cannot adopt through the database RPC.
 - A separate, non-sensitive update table triggers Supabase Realtime refreshes without exposing contribution receipts.
 - Hold cleanup is deferred across React development effect checks. Releasing synchronously from an effect cleanup invalidates a fresh hold under Strict Mode.
+- An expired hold replaces the form with a short status transition, then returns the visitor to the bench details.
 
 ## Before production
 
