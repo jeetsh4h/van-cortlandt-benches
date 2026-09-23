@@ -76,7 +76,6 @@ export function ParkMap({
     const adoptedColor = getMapColor("--map-adopted");
     const progressColor = getMapColor("--map-progress");
     const surfaceColor = getMapColor("--map-surface");
-    const clusterColor = getMapColor("--map-cluster");
     let animationFrame: number | undefined;
 
     const map = new mapboxgl.Map({
@@ -140,23 +139,60 @@ export function ParkMap({
         slot: "top",
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": surfaceColor,
-          "circle-radius": [
-            "step",
-            [
-              "+",
-              ["case", [">", ["get", "available_count"], 0], 1, 0],
-              ["case", [">", ["get", "adopted_count"], 0], 1, 0],
-              ["case", [">", ["get", "progress_count"], 0], 1, 0],
-            ],
-            22,
-            2,
-            27,
-            3,
-            31,
+          "circle-color": [
+            "case",
+            [">", ["get", "available_count"], 0],
+            availableColor,
+            [">", ["get", "adopted_count"], 0],
+            adoptedColor,
+            progressColor,
           ],
-          "circle-stroke-color": clusterColor,
-          "circle-stroke-width": 2.5,
+          "circle-radius": ["step", ["get", "point_count"], 23, 8, 27],
+          "circle-stroke-color": [
+            "case",
+            [
+              "all",
+              [">", ["get", "available_count"], 0],
+              [">", ["get", "adopted_count"], 0],
+            ],
+            adoptedColor,
+            [
+              "all",
+              [">", ["get", "available_count"], 0],
+              [">", ["get", "progress_count"], 0],
+            ],
+            progressColor,
+            [
+              "all",
+              [">", ["get", "adopted_count"], 0],
+              [">", ["get", "progress_count"], 0],
+            ],
+            progressColor,
+            surfaceColor,
+          ],
+          "circle-stroke-width": [
+            "case",
+            [
+              "any",
+              [
+                "all",
+                [">", ["get", "available_count"], 0],
+                [">", ["get", "adopted_count"], 0],
+              ],
+              [
+                "all",
+                [">", ["get", "available_count"], 0],
+                [">", ["get", "progress_count"], 0],
+              ],
+              [
+                "all",
+                [">", ["get", "adopted_count"], 0],
+                [">", ["get", "progress_count"], 0],
+              ],
+            ],
+            5,
+            3,
+          ],
           "circle-emissive-strength": 1,
         },
       });
@@ -169,63 +205,23 @@ export function ParkMap({
         filter: ["has", "point_count"],
         layout: {
           "text-field": [
-            "format",
+            "to-string",
             [
               "case",
               [">", ["get", "available_count"], 0],
-              [
-                "concat",
-                "+ ",
-                ["to-string", ["get", "available_count"]],
-              ],
-              "",
-            ],
-            { "text-color": availableColor },
-            [
-              "case",
+              ["get", "available_count"],
               [">", ["get", "adopted_count"], 0],
-              [
-                "concat",
-                [
-                  "case",
-                  [">", ["get", "available_count"], 0],
-                  "\n",
-                  "",
-                ],
-                "♥ ",
-                ["to-string", ["get", "adopted_count"]],
-              ],
-              "",
+              ["get", "adopted_count"],
+              ["get", "progress_count"],
             ],
-            { "text-color": adoptedColor },
-            [
-              "case",
-              [">", ["get", "progress_count"], 0],
-              [
-                "concat",
-                [
-                  "case",
-                  [
-                    "any",
-                    [">", ["get", "available_count"], 0],
-                    [">", ["get", "adopted_count"], 0],
-                  ],
-                  "\n",
-                  "",
-                ],
-                "• ",
-                ["to-string", ["get", "progress_count"]],
-              ],
-              "",
-            ],
-            { "text-color": progressColor },
           ],
-          "text-size": 12,
-          "text-line-height": 1.15,
+          "text-size": 14,
           "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
           "text-allow-overlap": true,
         },
-        paint: {},
+        paint: {
+          "text-color": surfaceColor,
+        },
       });
 
       map.addLayer({
@@ -244,13 +240,13 @@ export function ParkMap({
             progressColor,
             availableColor,
           ],
-          "circle-radius": 15,
+          "circle-radius": 19,
           "circle-opacity": [
             "match",
             ["get", "status"],
             "available",
-            0,
-            0.18,
+            0.14,
+            0.2,
           ],
         },
       });
@@ -271,9 +267,9 @@ export function ParkMap({
             progressColor,
             availableColor,
           ],
-          "circle-radius": ["case", ["get", "selected"], 11, 8],
+          "circle-radius": ["case", ["get", "selected"], 14, 11],
           "circle-stroke-color": surfaceColor,
-          "circle-stroke-width": ["case", ["get", "selected"], 4, 3],
+          "circle-stroke-width": ["case", ["get", "selected"], 5, 3.5],
           "circle-emissive-strength": 1,
         },
       });
@@ -294,7 +290,7 @@ export function ParkMap({
             "•",
             "+",
           ],
-          "text-size": ["match", ["get", "status"], "in-progress", 18, 15],
+          "text-size": ["match", ["get", "status"], "in-progress", 21, 17],
           "text-font": ["Arial Unicode MS Bold"],
           "text-allow-overlap": true,
         },
@@ -314,10 +310,10 @@ export function ParkMap({
             "match",
             ["get", "status"],
             "adopted",
-            13 + pulse * 3,
+            17 + pulse * 3,
             "in-progress",
-            14 + pulse * 5,
-            0,
+            18 + pulse * 4,
+            17 + pulse * 3,
           ]);
           map.setPaintProperty(
             HALO_LAYER_ID,
@@ -329,7 +325,7 @@ export function ParkMap({
               0.14 + pulse * 0.1,
               "in-progress",
               0.1 + pulse * 0.14,
-              0,
+              0.1 + pulse * 0.08,
             ],
           );
           animationFrame = window.requestAnimationFrame(animateHalos);
