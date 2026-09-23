@@ -24,8 +24,10 @@ For deployment, add the same variables to the host and allow its URL in the Mapb
 
 ## Data
 
-- The 11 bench coordinates are [OpenStreetMap](https://www.openstreetmap.org/copyright) `amenity=bench` nodes retrieved on September 22, 2026 and checked against [NYC Parks property X092 geometry](https://data.cityofnewyork.us/Recreation/Parks-Properties/enfh-gkve). This is an incomplete public inventory and must be field-verified before real use.
-- Bench IDs, area labels, adopter names, plaque messages, and the two initial adoptions are POC fixtures. They are not NYC Parks records.
+- The 11 bench coordinates are [OpenStreetMap](https://www.openstreetmap.org/copyright) `amenity=bench` nodes retrieved on September 22, 2026 and checked against the [Van Cortlandt Park boundary](https://www.arcgis.com/home/item.html?id=e4b99c9fc23b417781faaa908e6d7bee). This is an incomplete public inventory and must be field-verified before real use.
+- The [VCPA bench inventory](https://www.arcgis.com/home/item.html?id=406d8f819d3f4733981a3566eefd0152) has point, adoption, plaque, and two-sided bench fields, but public record queries are disabled. Ask VCPA for an authorized export before production; no restricted records were copied.
+- NYC Parks' inspection inventory confirms bench types across many X092 sub-sites, but its rows are feature types rather than individual benches and have no point coordinates. Do not convert those rows or site centroids into bench locations.
+- Bench IDs, area labels, adopter names, plaque messages, adoption dates, contribution amounts, payment methods, and receipts are POC fixtures. None are represented as VCPA or NYC Parks records. The reseed migration intentionally removes all earlier POC submissions.
 - The three area images are AI-generated illustrations, not photographs of the mapped benches. Replace them with field-verified photos before launch.
 - The favicon and header mark use the [Van Cortlandt Park Alliance site icon](https://vancortlandt.org/wp-content/uploads/2019/10/cropped-site-icon-270x270.png) for this POC; confirm brand permission before launch.
 - Source IDs remain in `benches.source_reference` for auditing.
