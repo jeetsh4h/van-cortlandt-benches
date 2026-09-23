@@ -44,7 +44,6 @@ For deployment, add the same variables to the host and allow its URL in the Mapb
 - Terms use whole years. The adoption end keeps the start month and day, clamping leap-day adoptions when needed.
 - Starting an adoption creates an atomic 10-minute hold. Other visitors see the hold within the 15-second availability refresh and cannot adopt through the database RPC.
 - A separate, non-sensitive update table triggers Supabase Realtime refreshes without exposing contribution receipts.
-- Hold cleanup is deferred across React development effect checks. Releasing synchronously from an effect cleanup invalidates a fresh hold under Strict Mode.
 - An expired hold replaces the form with a short status transition, then returns the visitor to the bench details.
 
 ## Before production

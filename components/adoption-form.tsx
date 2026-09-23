@@ -180,6 +180,9 @@ export function AdoptionForm({
   }, [expireHold, holdExpiresAt]);
 
   useEffect(() => {
+    // React Strict Mode replays setup → cleanup → setup in development. Defer
+    // releasing the hold so the replayed setup can cancel it; after a real
+    // unmount there is no new setup, so the release proceeds.
     if (releaseTimerRef.current !== null) {
       window.clearTimeout(releaseTimerRef.current);
       releaseTimerRef.current = null;
