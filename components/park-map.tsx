@@ -11,6 +11,7 @@ const CLUSTER_COUNT_LAYER_ID = "bench-cluster-count";
 const HALO_LAYER_ID = "bench-halos";
 const POINT_LAYER_ID = "bench-points";
 const SYMBOL_LAYER_ID = "bench-symbols";
+const BENCH_FOCUS_ZOOM = 17;
 const PARK_BOUNDS: mapboxgl.LngLatBoundsLike = [
   [-73.912, 40.884],
   [-73.881, 40.917],
@@ -423,7 +424,7 @@ export function ParkMap({
       point.x <= canvas.clientWidth - padding.right &&
       point.y >= padding.top &&
       point.y <= canvas.clientHeight - padding.bottom;
-    const needsZoom = map.getZoom() < 15.5;
+    const needsZoom = map.getZoom() < BENCH_FOCUS_ZOOM;
 
     if (isVisible && !needsZoom) {
       return;
@@ -431,7 +432,7 @@ export function ParkMap({
 
     map.easeTo({
       center: [bench.longitude, bench.latitude],
-      zoom: Math.max(map.getZoom(), 15.5),
+      zoom: Math.max(map.getZoom(), BENCH_FOCUS_ZOOM),
       duration: 700,
       padding,
     });
