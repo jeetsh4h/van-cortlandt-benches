@@ -1,7 +1,19 @@
 "use client";
 
-import { CalendarDays, EyeOff, LoaderCircle, LockKeyhole } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  CalendarDays,
+  EyeOff,
+  LoaderCircle,
+  LockKeyhole,
+  TimerOff,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { ContributionReceipt } from "@/components/contribution-receipt";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
@@ -9,6 +21,10 @@ import { PlaquePreview } from "@/components/plaque-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { releaseBenchHold, submitAdoption } from "@/lib/benches";
 import type {
@@ -17,9 +33,10 @@ import type {
   PaymentMethod,
 } from "@/lib/bench-types";
 import {
-  BENCH_ADOPTION_MINIMUM,
   currencyFormatter,
   DEFAULT_ADOPTION_YEARS,
+  MAX_ADOPTION_YEARS,
+  minimumContributionForYears,
   paymentMethodLabels,
 } from "@/lib/contribution";
 import {
@@ -37,9 +54,16 @@ type AdoptionFormProps = {
   onCancel: () => void;
   onComplete: () => Promise<void>;
   onDone: () => void;
+  onExpired: () => void;
 };
 
-type FlowStage = "tribute" | "payment" | "review" | "processing" | "receipt";
+type FlowStage =
+  | "tribute"
+  | "payment"
+  | "review"
+  | "processing"
+  | "receipt"
+  | "expired";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "long",
@@ -47,6 +71,11 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   timeZone: "UTC",
 });
+
+const ADOPTION_YEAR_OPTIONS = Array.from(
+  { length: MAX_ADOPTION_YEARS - DEFAULT_ADOPTION_YEARS + 1 },
+  (_, index) => DEFAULT_ADOPTION_YEARS + index,
+);
 
 function calendarEndDate(years: number) {
   const start = new Date();
@@ -92,20 +121,63 @@ export function AdoptionForm({
   onCancel,
   onComplete,
   onDone,
+  onExpired,
 }: AdoptionFormProps) {
   const [stage, setStage] = useState<FlowStage>("tribute");
   const [patronName, setPatronName] = useState("");
   const [durationCount, setDurationCount] = useState(DEFAULT_ADOPTION_YEARS);
   const [plaqueMessage, setPlaqueMessage] = useState("");
-  const [contributionAmount, setContributionAmount] = useState(
-    BENCH_ADOPTION_MINIMUM,
-  );
+  const [additionalContribution, setAdditionalContribution] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<AdoptionResult | null>(null);
   const ownsHoldRef = useRef(true);
   const releaseTimerRef = useRef<number | null>(null);
+  const expirationTimerRef = useRef<number | null>(null);
+  const exitTimerRef = useRef<number | null>(null);
+  const expiredHandledRef = useRef(false);
+  const onExpiredRef = useRef(onExpired);
+  const minimumContribution = minimumContributionForYears(durationCount);
+  const additionalContributionAmount =
+    additionalContribution === "" ? 0 : Number(additionalContribution);
+  const contributionAmount =
+    minimumContribution + additionalContributionAmount;
+
+  useEffect(() => {
+    onExpiredRef.current = onExpired;
+  }, [onExpired]);
+
+  const expireHold = useCallback(() => {
+    if (expiredHandledRef.current) {
+      return;
+    }
+
+    expiredHandledRef.current = true;
+    ownsHoldRef.current = false;
+    setStage("expired");
+    exitTimerRef.current = window.setTimeout(() => {
+      onExpiredRef.current();
+    }, 1_400);
+  }, []);
+
+  useEffect(() => {
+    const remainingMilliseconds =
+      new Date(holdExpiresAt).getTime() - Date.now();
+    expirationTimerRef.current = window.setTimeout(
+      expireHold,
+      Math.max(0, remainingMilliseconds),
+    );
+
+    return () => {
+      if (expirationTimerRef.current !== null) {
+        window.clearTimeout(expirationTimerRef.current);
+      }
+      if (exitTimerRef.current !== null) {
+        window.clearTimeout(exitTimerRef.current);
+      }
+    };
+  }, [expireHold, holdExpiresAt]);
 
   useEffect(() => {
     if (releaseTimerRef.current !== null) {
@@ -156,8 +228,11 @@ export function AdoptionForm({
 
   function showReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (contributionAmount < BENCH_ADOPTION_MINIMUM) {
-      setError(`The minimum contribution is ${currencyFormatter.format(BENCH_ADOPTION_MINIMUM)}.`);
+    if (
+      !Number.isFinite(additionalContributionAmount) ||
+      additionalContributionAmount < 0
+    ) {
+      setError("Additional donation cannot be negative.");
       return;
     }
 
@@ -178,17 +253,25 @@ export function AdoptionForm({
         adopterName: patronName,
         plaqueMessage,
         durationCount,
-        contributionAmount,
+        additionalContributionAmount,
         paymentMethod,
         isAnonymous,
       });
 
       if (!result.success) {
+        if (result.message.toLowerCase().includes("hold expired")) {
+          expireHold();
+          return;
+        }
         setError(result.message);
         setStage("review");
         return;
       }
 
+      if (expirationTimerRef.current !== null) {
+        window.clearTimeout(expirationTimerRef.current);
+        expirationTimerRef.current = null;
+      }
       ownsHoldRef.current = false;
       setReceipt(result);
       setStage("receipt");
@@ -216,6 +299,26 @@ export function AdoptionForm({
     );
   }
 
+  if (stage === "expired") {
+    return (
+      <div
+        className="flex min-h-72 flex-col items-center justify-center gap-5 text-center"
+        aria-live="assertive"
+      >
+        <span className="relative flex size-16 items-center justify-center rounded-full bg-progress/10 text-progress-foreground">
+          <span className="absolute inset-0 rounded-full border border-progress/30 motion-safe:animate-ping" />
+          <TimerOff className="size-7" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="font-heading text-lg font-semibold">Hold expired</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Returning to this bench
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (stage === "processing") {
     return (
       <div className="flex min-h-72 flex-col items-center justify-center gap-5 text-center" aria-live="polite">
@@ -237,7 +340,7 @@ export function AdoptionForm({
           <LockKeyhole aria-hidden="true" className="size-3.5" />
           Held until {holdTime}
         </span>
-        <span>10-year standard</span>
+        <span>10-year minimum</span>
       </div>
 
       {stage === "tribute" ? (
@@ -280,24 +383,17 @@ export function AdoptionForm({
 
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-sm font-medium">Term</legend>
-            <div className="relative">
-              <Input
-                aria-label="Duration count"
-                type="number"
-                min={1}
-                max={10}
-                step={1}
-                value={durationCount}
-                onChange={(event) =>
-                  setDurationCount(Math.max(1, Number(event.target.value)))
-                }
-                className="pr-16"
-                required
-              />
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
-                years
-              </span>
-            </div>
+            <NativeSelect
+              aria-label="Adoption term"
+              value={String(durationCount)}
+              onChange={(event) => setDurationCount(Number(event.target.value))}
+            >
+              {ADOPTION_YEAR_OPTIONS.map((years) => (
+                <NativeSelectOption key={years} value={String(years)}>
+                  {years} years
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
           </fieldset>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -326,28 +422,30 @@ export function AdoptionForm({
         <form className="flex animate-in flex-col gap-5 fade-in" onSubmit={showReview}>
           <div className="rounded-2xl bg-muted p-4">
             <p className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
-              Minimum contribution
+              {durationCount}-year minimum
             </p>
             <p className="mt-1 font-heading text-3xl font-semibold">
-              {currencyFormatter.format(BENCH_ADOPTION_MINIMUM)}
+              {currencyFormatter.format(minimumContribution)}
             </p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="contributionAmount">Your contribution (USD)</Label>
+            <Label htmlFor="additionalContribution">
+              Additional donation (USD)
+            </Label>
             <Input
-              id="contributionAmount"
+              id="additionalContribution"
               type="number"
-              min={BENCH_ADOPTION_MINIMUM}
-              max={999999}
-              step={100}
-              value={contributionAmount}
-              onChange={(event) => setContributionAmount(Number(event.target.value))}
-              required
+              min={0}
+              max={999999 - minimumContribution}
+              step={50}
+              value={additionalContribution}
+              onChange={(event) => setAdditionalContribution(event.target.value)}
+              placeholder="0"
             />
-            {contributionAmount > BENCH_ADOPTION_MINIMUM ? (
+            {additionalContributionAmount > 0 ? (
               <p className="text-xs font-medium text-primary">
-                +{currencyFormatter.format(contributionAmount - BENCH_ADOPTION_MINIMUM)} for park care
+                Total {currencyFormatter.format(contributionAmount)}
               </p>
             ) : null}
           </div>
@@ -412,8 +510,24 @@ export function AdoptionForm({
           <PlaquePreview message={plaqueMessage} />
           <dl className="grid gap-3 rounded-2xl border border-border bg-card p-4 text-sm">
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">Contribution</dt>
-              <dd className="font-semibold">{currencyFormatter.format(contributionAmount)}</dd>
+              <dt className="text-muted-foreground">Adoption contribution</dt>
+              <dd className="font-medium">
+                {currencyFormatter.format(minimumContribution)}
+              </dd>
+            </div>
+            {additionalContributionAmount > 0 ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Additional donation</dt>
+                <dd className="font-medium">
+                  {currencyFormatter.format(additionalContributionAmount)}
+                </dd>
+              </div>
+            ) : null}
+            <div className="flex justify-between gap-4 border-t border-border pt-3">
+              <dt className="font-medium">Total</dt>
+              <dd className="font-semibold">
+                {currencyFormatter.format(contributionAmount)}
+              </dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Method</dt>

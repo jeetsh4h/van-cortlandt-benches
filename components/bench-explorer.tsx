@@ -7,7 +7,11 @@ import { BenchDetails } from "@/components/bench-details";
 import { MapLegend } from "@/components/map-legend";
 import { ParkMap } from "@/components/park-map";
 import { listBenches } from "@/lib/benches";
-import { getBenchStatus, type Bench } from "@/lib/bench-types";
+import {
+  getBenchStatus,
+  type Bench,
+  type BenchStatus,
+} from "@/lib/bench-types";
 import { getBrowserSupabaseClient } from "@/lib/supabase";
 
 type BenchExplorerProps = {
@@ -22,6 +26,7 @@ export function BenchExplorer({
   const [benches, setBenches] = useState(initialBenches);
   const [selectedBenchId, setSelectedBenchId] = useState<string | null>(null);
   const [resetRequestId, setResetRequestId] = useState(0);
+  const [focusRequestId, setFocusRequestId] = useState(0);
 
   const refreshBenches = useCallback(async () => {
     const nextBenches = await listBenches(getBrowserSupabaseClient());
@@ -55,47 +60,76 @@ export function BenchExplorer({
     };
   }, [refreshBenches]);
 
-  const selectedBench = useMemo(
-    () => benches.find((bench) => bench.id === selectedBenchId) ?? null,
-    [benches, selectedBenchId],
-  );
-
-  const availableBenches = useMemo(
-    () => benches.filter((bench) => getBenchStatus(bench) === "available"),
+  const orderedBenches = useMemo(
+    () =>
+      [...benches].sort((first, second) =>
+        first.id.localeCompare(second.id, undefined, { numeric: true }),
+      ),
     [benches],
   );
 
-  const selectedAvailableIndex = availableBenches.findIndex(
+  const selectedBench = useMemo(
+    () =>
+      orderedBenches.find((bench) => bench.id === selectedBenchId) ?? null,
+    [orderedBenches, selectedBenchId],
+  );
+
+  const selectedBenchIndex = orderedBenches.findIndex(
     (bench) => bench.id === selectedBenchId,
   );
 
-  const cycleAvailable = useCallback(
+  const focusBench = useCallback((benchId: string) => {
+    setSelectedBenchId(benchId);
+    setFocusRequestId((current) => current + 1);
+  }, []);
+
+  const selectRandomBench = useCallback(
+    (status: BenchStatus) => {
+      const matchingBenches = orderedBenches.filter(
+        (bench) => getBenchStatus(bench) === status,
+      );
+      if (!matchingBenches.length) {
+        return;
+      }
+
+      const candidates =
+        matchingBenches.length > 1 ?
+          matchingBenches.filter((bench) => bench.id !== selectedBenchId)
+        : matchingBenches;
+      const randomIndex = Math.floor(Math.random() * candidates.length);
+      focusBench(candidates[randomIndex].id);
+    },
+    [focusBench, orderedBenches, selectedBenchId],
+  );
+
+  const cycleBench = useCallback(
     (direction: 1 | -1) => {
-      if (!availableBenches.length) {
+      if (!orderedBenches.length) {
         return;
       }
 
       const nextIndex =
-        selectedAvailableIndex === -1 ?
-          direction === 1 ? 0 : availableBenches.length - 1
-        : (selectedAvailableIndex + direction + availableBenches.length) %
-          availableBenches.length;
-      setSelectedBenchId(availableBenches[nextIndex].id);
+        selectedBenchIndex === -1 ? 0
+        : (selectedBenchIndex + direction + orderedBenches.length) %
+          orderedBenches.length;
+      focusBench(orderedBenches[nextIndex].id);
     },
-    [availableBenches, selectedAvailableIndex],
+    [focusBench, orderedBenches, selectedBenchIndex],
   );
 
   const counts = useMemo(
     () => ({
-      available: benches.filter((bench) => getBenchStatus(bench) === "available")
-        .length,
-      adopted: benches.filter((bench) => getBenchStatus(bench) === "adopted")
-        .length,
-      inProgress: benches.filter(
+      available: orderedBenches.filter(
+        (bench) => getBenchStatus(bench) === "available",
+      ).length,
+      adopted: orderedBenches.filter(
+        (bench) => getBenchStatus(bench) === "adopted",
+      ).length,
+      inProgress: orderedBenches.filter(
         (bench) => getBenchStatus(bench) === "in-progress",
       ).length,
     }),
-    [benches],
+    [orderedBenches],
   );
 
   return (
@@ -104,14 +138,17 @@ export function BenchExplorer({
         benches={benches}
         mapboxToken={mapboxToken}
         selectedBenchId={selectedBenchId}
-        onSelectBench={setSelectedBenchId}
+        onSelectBench={focusBench}
         resetRequestId={resetRequestId}
+        focusRequestId={focusRequestId}
       />
       <AppHeader
         availableCount={counts.available}
         adoptedCount={counts.adopted}
         inProgressCount={counts.inProgress}
-        onShowAvailable={() => cycleAvailable(1)}
+        onShowAvailable={() => selectRandomBench("available")}
+        onShowAdopted={() => selectRandomBench("adopted")}
+        onShowInProgress={() => selectRandomBench("in-progress")}
         onResetMap={() => {
           setSelectedBenchId(null);
           setResetRequestId((current) => current + 1);
@@ -122,14 +159,12 @@ export function BenchExplorer({
         <BenchDetails
           key={selectedBench.id}
           bench={selectedBench}
+          position={selectedBenchIndex + 1}
+          total={orderedBenches.length}
           onClose={() => setSelectedBenchId(null)}
           onChanged={refreshBenches}
-          availablePosition={
-            selectedAvailableIndex === -1 ? null : selectedAvailableIndex + 1
-          }
-          availableTotal={availableBenches.length}
-          onPreviousAvailable={() => cycleAvailable(-1)}
-          onNextAvailable={() => cycleAvailable(1)}
+          onPrevious={() => cycleBench(-1)}
+          onNext={() => cycleBench(1)}
         />
       ) : null}
     </main>

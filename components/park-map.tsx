@@ -22,6 +22,7 @@ type ParkMapProps = {
   selectedBenchId: string | null;
   onSelectBench: (benchId: string) => void;
   resetRequestId: number;
+  focusRequestId: number;
 };
 
 function toGeoJson(benches: Bench[], selectedBenchId: string | null) {
@@ -52,6 +53,7 @@ export function ParkMap({
   selectedBenchId,
   onSelectBench,
   resetRequestId,
+  focusRequestId,
 }: ParkMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
@@ -139,9 +141,22 @@ export function ParkMap({
         filter: ["has", "point_count"],
         paint: {
           "circle-color": surfaceColor,
-          "circle-radius": 29,
+          "circle-radius": [
+            "step",
+            [
+              "+",
+              ["case", [">", ["get", "available_count"], 0], 1, 0],
+              ["case", [">", ["get", "adopted_count"], 0], 1, 0],
+              ["case", [">", ["get", "progress_count"], 0], 1, 0],
+            ],
+            22,
+            2,
+            27,
+            3,
+            31,
+          ],
           "circle-stroke-color": clusterColor,
-          "circle-stroke-width": 2,
+          "circle-stroke-width": 2.5,
           "circle-emissive-strength": 1,
         },
       });
@@ -154,22 +169,63 @@ export function ParkMap({
         filter: ["has", "point_count"],
         layout: {
           "text-field": [
-            "concat",
-            "+ ",
-            ["to-string", ["get", "available_count"]],
-            "  ♥ ",
-            ["to-string", ["get", "adopted_count"]],
-            "\n• ",
-            ["to-string", ["get", "progress_count"]],
+            "format",
+            [
+              "case",
+              [">", ["get", "available_count"], 0],
+              [
+                "concat",
+                "+ ",
+                ["to-string", ["get", "available_count"]],
+              ],
+              "",
+            ],
+            { "text-color": availableColor },
+            [
+              "case",
+              [">", ["get", "adopted_count"], 0],
+              [
+                "concat",
+                [
+                  "case",
+                  [">", ["get", "available_count"], 0],
+                  "\n",
+                  "",
+                ],
+                "♥ ",
+                ["to-string", ["get", "adopted_count"]],
+              ],
+              "",
+            ],
+            { "text-color": adoptedColor },
+            [
+              "case",
+              [">", ["get", "progress_count"], 0],
+              [
+                "concat",
+                [
+                  "case",
+                  [
+                    "any",
+                    [">", ["get", "available_count"], 0],
+                    [">", ["get", "adopted_count"], 0],
+                  ],
+                  "\n",
+                  "",
+                ],
+                "• ",
+                ["to-string", ["get", "progress_count"]],
+              ],
+              "",
+            ],
+            { "text-color": progressColor },
           ],
-          "text-size": 11,
-          "text-line-height": 1.25,
+          "text-size": 12,
+          "text-line-height": 1.15,
           "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
           "text-allow-overlap": true,
         },
-        paint: {
-          "text-color": clusterColor,
-        },
+        paint: {},
       });
 
       map.addLayer({
@@ -353,21 +409,37 @@ export function ParkMap({
       return;
     }
 
-    mapRef.current.easeTo({
+    const map = mapRef.current;
+    const isDesktop = window.innerWidth >= 640;
+    const padding =
+      isDesktop ?
+        { top: 24, right: 424, bottom: 24, left: 24 }
+      : {
+          top: 88,
+          right: 16,
+          bottom: Math.round(window.innerHeight * 0.56),
+          left: 16,
+        };
+    const point = map.project([bench.longitude, bench.latitude]);
+    const canvas = map.getCanvas();
+    const isVisible =
+      point.x >= padding.left &&
+      point.x <= canvas.clientWidth - padding.right &&
+      point.y >= padding.top &&
+      point.y <= canvas.clientHeight - padding.bottom;
+    const needsZoom = map.getZoom() < 15.5;
+
+    if (isVisible && !needsZoom) {
+      return;
+    }
+
+    map.easeTo({
       center: [bench.longitude, bench.latitude],
-      zoom: Math.max(mapRef.current.getZoom(), 15.5),
+      zoom: Math.max(map.getZoom(), 15.5),
       duration: 700,
-      padding:
-        window.innerWidth >= 640 ?
-          { top: 24, right: 424, bottom: 24, left: 24 }
-        : {
-            top: 88,
-            right: 16,
-            bottom: Math.round(window.innerHeight * 0.56),
-            left: 16,
-          },
+      padding,
     });
-  }, [benches, selectedBenchId]);
+  }, [benches, focusRequestId, selectedBenchId]);
 
   useEffect(() => {
     if (!resetRequestId || !mapRef.current) {

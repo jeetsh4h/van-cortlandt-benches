@@ -58,7 +58,7 @@ export async function submitAdoption(input: {
   adopterName: string;
   plaqueMessage: string;
   durationCount: number;
-  contributionAmount: number;
+  additionalContributionAmount: number;
   paymentMethod: PaymentMethod;
   isAnonymous: boolean;
 }): Promise<AdoptionResult> {
@@ -68,7 +68,7 @@ export async function submitAdoption(input: {
     p_adopter_name: input.adopterName,
     p_plaque_message: input.plaqueMessage,
     p_duration_years: input.durationCount,
-    p_contribution_amount: input.contributionAmount,
+    p_additional_contribution_amount: input.additionalContributionAmount,
     p_payment_method: input.paymentMethod,
     p_is_anonymous: input.isAnonymous,
   });

@@ -9,6 +9,8 @@ type AppHeaderProps = {
   inProgressCount: number;
   onResetMap: () => void;
   onShowAvailable: () => void;
+  onShowAdopted: () => void;
+  onShowInProgress: () => void;
 };
 
 export function AppHeader({
@@ -17,6 +19,8 @@ export function AppHeader({
   inProgressCount,
   onResetMap,
   onShowAvailable,
+  onShowAdopted,
+  onShowInProgress,
 }: AppHeaderProps) {
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-3 sm:p-5">
@@ -34,7 +38,7 @@ export function AppHeader({
           className="size-10"
           priority
         />
-        <div>
+        <div className="hidden sm:block">
           <p className="font-heading text-sm font-semibold tracking-tight">
             Van Cortlandt Park
           </p>
@@ -54,15 +58,31 @@ export function AppHeader({
             {availableCount} available
           </Badge>
         </button>
-        <Badge variant="adopted" className="hidden sm:inline-flex">
-          <Heart aria-hidden="true" className="size-3 fill-current" />
-          {adoptedCount} adopted
-        </Badge>
+        {adoptedCount ? (
+          <button
+            type="button"
+            onClick={onShowAdopted}
+            aria-label={`Browse ${adoptedCount} adopted benches`}
+            className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+          >
+            <Badge variant="adopted" className="cursor-pointer">
+              <Heart aria-hidden="true" className="size-3 fill-current" />
+              {adoptedCount} adopted
+            </Badge>
+          </button>
+        ) : null}
         {inProgressCount ? (
-          <Badge variant="progress" className="hidden sm:inline-flex">
-            <Clock3 aria-hidden="true" className="size-3" />
-            {inProgressCount} in progress
-          </Badge>
+          <button
+            type="button"
+            onClick={onShowInProgress}
+            aria-label={`Browse ${inProgressCount} benches in progress`}
+            className="hidden rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/30 sm:block"
+          >
+            <Badge variant="progress" className="cursor-pointer">
+              <Clock3 aria-hidden="true" className="size-3" />
+              {inProgressCount} in progress
+            </Badge>
+          </button>
         ) : null}
       </div>
     </header>

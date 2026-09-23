@@ -56,6 +56,16 @@ export function ContributionReceipt({
           </strong>
         </div>
         <dl className="grid gap-3 pt-4 text-sm">
+          {result.additional_contribution_amount ? (
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Additional donation</dt>
+              <dd className="font-medium">
+                {currencyFormatter.format(
+                  result.additional_contribution_amount,
+                )}
+              </dd>
+            </div>
+          ) : null}
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Bench</dt>
             <dd className="font-medium">{bench.id}</dd>

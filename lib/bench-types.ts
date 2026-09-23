@@ -27,6 +27,7 @@ export type AdoptionResult = {
   adoption_start: string | null;
   adoption_end: string | null;
   contribution_amount: number | null;
+  additional_contribution_amount: number | null;
   payment_method: PaymentMethod | null;
   is_anonymous: boolean | null;
   receipt_number: string | null;
